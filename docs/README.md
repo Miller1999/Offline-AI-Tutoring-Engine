@@ -1,185 +1,87 @@
-# 🧠 Motor de Tutoría IA Offline — Sandbox POC
+# 📚 Documentation
 
-Documentación completa del proyecto dividida por sprints, diseñada para Obsidian.
+Reference documentation for the Offline AI Tutoring Engine.
 
----
+| Document | Description |
+|----------|-------------|
+| [Architecture](architecture.md) | Layers, module responsibilities, evaluation flow, configuration and the breaking changes of the 2026 restructure |
+| [Security](security.md) | Attack surface, implemented defences, testing the defences and the known gaps |
+| [Roadmap](roadmap.md) | Completed work, next steps and technical debt |
+| [Sprint notes](sprints/) | The development history of the prototype, from the proof of concept to the documentation API |
 
-## 📋 Índice de Sprints
+## Quick start
 
-| Sprint | Enfoque Principal | Archivo |
-|--------|-------------------|---------|
-| **Sprint 0** | Prueba de concepto del motor base (Docker + ChromaDB + Ollama) | [[Sprint 0 - Prueba de concepto del motor base]] |
-| **Sprint 1** | Integración SQLite, Gating y API REST | [[Sprint 1 - Integración SQLite y Gating]] |
-| **Sprint 2** | Capa de presentación Frontend minimalista | [[Sprint 2 - Capa de Presentacion Frontend Minimalista]] |
-| **Sprint 3** | Generación dinámica de ejercicios y evaluación socrática resiliente | [[Sprint 3 - Generación Dinámica y Evaluación Socrática Resiliente]] |
-| **Sprint 4** | Ingesta masiva de documentación y API de aprendizaje | [[Sprint 4 - Ingesta Masiva de Documentación y API de Aprendizaje]] |
+```bash
+pip install -r requirements.txt
+docker build -t sandbox-evaluador .
+ollama pull qwen2.5-coder:7b
+uvicorn app.main:app --reload --port 8000
+```
 
----
+## Sprint index
 
-## 🏗️ Arquitectura General
+| Sprint | Focus | Document |
+|--------|-------|----------|
+| **Sprint 0** | Proof of concept of the core engine (Docker + ChromaDB + Ollama) | [sprint-0](sprints/sprint-0.md) |
+| **Sprint 1** | SQLite integration, gating and the REST API | [sprint-1](sprints/sprint-1.md) |
+| **Sprint 2** | Minimalist frontend layer | [sprint-2](sprints/sprint-2.md) |
+| **Sprint 3** | Dynamic generation and resilient Socratic evaluation | [sprint-3](sprints/sprint-3.md) |
+| **Sprint 4** | Mass documentation ingestion and the learning API | [sprint-4](sprints/sprint-4.md) |
+
+## Architectural overview
 
 ```text
 ┌──────────────────────────────────────────────────────┐
-│                    Frontend (index.html)              │
-│  [Formulario de Ejercicios] [Explorador de Docs]     │
+│                    Frontend (frontend/)              │
+│  [Exercise form] [Code upload] [Docs explorer]       │
 └──────────────────────┬───────────────────────────────┘
                        │ HTTP (FormData / JSON)
                        ▼
 ┌──────────────────────────────────────────────────────┐
-│              Backend API (main.py)                     │
-│  FastAPI 1.1                                          │
-│  ┌─────────────────┐  ┌──────────────────────────┐   │
-│  │ /evaluar         │  │ /generar                 │   │
-│  │ / (index.html)   │  │ /aprendizaje/*           │   │
-│  └────────┬────────┘  └──────────┬───────────────┘   │
-└───────────┼──────────────────────┼───────────────────┘
+│              API layer (app/api/)                     │
+│  /evaluate  /generate  /learning/*  /health  /       │
+└───────────┬──────────────────────┬───────────────────┘
             │                      │
             ▼                      ▼
 ┌───────────────────────┐  ┌──────────────────────────┐
-│  Orquestador Core      │  │  API de Aprendizaje       │
-│  (orquestador.py)     │  │  (aprendizaje_api.py)    │
-│  ┌─────────────────┐  │  │  ┌─────────────────────┐  │
-│  │ Docker Sandbox   │  │  │  │ ChromaDB (RAG)      │  │
-│  │ pytest + reporte │  │  │  │ consultas semánticas│  │
-│  └────────┬────────┘  │  │  └─────────────────────┘  │
-│  ┌─────────────────┐  │  └──────────────────────────┘
-│  │ Ollama + Qwen    │  │
-│  │ 2.5 Coder 7B     │  │
-│  └─────────────────┘  │
-│  ┌─────────────────┐  │
-│  │ ChromaDB (RAG)   │  │
-│  └─────────────────┘  │
-└───────────────────────┘
+│   Services (app/services) │  │     Core (app/core)      │
+│  orchestrator            │  │  config · logging       │
+│  database                │  │  prompts · security     │
+│  learning · exercises    │  │  sandbox                │
+└───────────────────────┘  └──────────────────────────┘
             │
             ▼
 ┌──────────────────────────────────────────────────────┐
-│              Persistencia Local                        │
-│  ┌─────────────────┐  ┌──────────────────────────┐   │
-│  │ SQLite           │  │ ChromaDB (bd_vectorial/)│   │
-│  │ gating_estudian- │  │ embedding ONNX offline  │   │
-│  │ tes.db           │  │ (MiniLM-L6-V2)          │   │
-│  └─────────────────┘  └──────────────────────────┘   │
+│              Local persistence                        │
+│  SQLite (gating)   ChromaDB (RAG)   Docker sandbox   │
 └──────────────────────────────────────────────────────┘
 ```
 
----
+## Tech stack
 
-## 🔧 Stack Tecnológico
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Backend** | Python 3.12+ and FastAPI | REST API |
+| **Frontend** | Plain HTML, CSS and JavaScript | User interface, no build step |
+| **Sandbox** | Docker (Alpine + pytest) | Safe code execution |
+| **Database** | SQLite (via `sqlite3`) | Gating and rote learning |
+| **Vector DB** | ChromaDB (ONNX MiniLM-L6-V2) | RAG semantic search |
+| **Local AI** | Qwen 2.5 Coder 7B (through Ollama) | Socratic tutor and generation |
+| **Documentation** | Python documentation (500+ `.txt` files) | Knowledge base |
 
-| Componente | Tecnología | Propósito |
-|------------|------------|-----------|
-| **Backend** | Python 3.14 + FastAPI | API REST |
-| **Frontend** | HTML + CSS + JS vanilla | Interfaz de usuario |
-| **Sandbox** | Docker (Alpine + pytest) | Ejecución segura de código |
-| **Base de datos** | SQLite (vía sqlite3) | Gating y Rote Learning |
-| **Vector DB** | ChromaDB (ONNX MiniLM-L6-V2) | Búsqueda semántica RAG |
-| **IA Local** | Qwen 2.5 Coder 7B (via Ollama) | Tutor socrático + generación |
-| **Documentación** | Python 3.14 Docs (528+ archivos .txt) | Base de conocimiento |
+## Concepts of the thesis
 
----
+**Gating** — progression system where each exercise must be passed to unlock the next one.
+SQLite records the attempts and the states.
 
-## 🚀 Cómo Ejecutar
+**Rote learning** — objective measurement of how many iterations a student needs to master a
+concept, based on the retry history.
 
-### Prerrequisitos
-- Python 3.14+
-- Docker Desktop
-- Ollama con modelo `qwen2.5-coder:7b`
+**Isolated evaluation** — execution of untrusted code in a Docker container without network,
+with limited resources and automatic destruction after the evaluation.
 
-### Instalación
-```bash
-# 1. Construir imagen Docker del sandbox
-docker build -t sandbox-evaluador .
+**Local RAG** — context enriched through semantic search in a local vector knowledge base,
+100% offline.
 
-# 2. Ingestar documentación en ChromaDB (opcional, para RAG completo)
-python ingestar_conocimiento.py
-
-# 3. Iniciar el servidor
-uvicorn main:app --host 0.0.0.0 --port 8000
-
-# 4. Abrir navegador en http://localhost:8000
-```
-
-### Comandos Útiles
-```bash
-# Modo desarrollo (sin live reload para evitar conflictos)
-uvicorn main:app --reload --reload-exclude "ejercicio_alumno.py"
-
-# Probar generación de ejercicios directamente
-python orquestador.py
-```
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-sandbox_poc/
-│
-├── main.py                     # Servidor FastAPI (endpoints REST)
-├── orquestador.py              # Núcleo: Docker + RAG + Ollama
-├── base_datos.py               # Abstracción SQLite (Gating)
-├── aprendizaje_api.py          # API de consulta ChromaDB
-├── ingestar_conocimiento.py    # Ingesta masiva de documentación
-├── cargar_rag.py               # Prototipo inicial RAG
-│
-├── index.html                  # Frontend completo (Tabs + UI)
-├── Dockerfile                  # Sandbox Docker (pytest Alpine)
-│
-├── gating_estudiantes.db       # SQLite (Gating + Rote Learning)
-├── bd_vectorial/               # ChromaDB persistente
-│
-├── test_ejercicio.py           # Tests Pytest estáticos
-├── test_dinamico_*.py          # Tests dinámicos generados por IA
-├── ejercicio_alumno.py         # Código subido por el estudiante
-│
-├── apuntes.md                  # Apuntes iniciales del profesor
-│
-├── docs/                       # 📚 Documentación (este directorio)
-│   ├── README.md
-│   ├── Sprint 0 - Prueba de concepto del motor base.md
-│   ├── Sprint 1 - Integración SQLite y Gating.md
-│   ├── Sprint 2 - Capa de Presentacion Frontend Minimalista.md
-│   ├── Sprint 3 - Generación Dinámica y Evaluación Socrática.md
-│   └── Sprint 4 - Ingesta Masiva de Documentación y API.md
-│
-└── Sprint *.md                 # Documentación original (raíz)
-```
-
----
-
-## 📊 Estado del Proyecto
-
-| Componente | Estado | Sprint |
-|------------|--------|--------|
-| Sandbox Docker (pytest + reporte JSON) | ✅ Completado | 0 |
-| RAG con ChromaDB (embedding offline) | ✅ Completado | 0 |
-| Tutor IA (Qwen 2.5 Coder via Ollama) | ✅ Completado | 0 |
-| Guardrail anti-solución | ✅ Completado | 0 |
-| SQLite + Gating (progreso de estudiantes) | ✅ Completado | 1 |
-| API REST FastAPI (endpoints) | ✅ Completado | 1 |
-| Frontend minimalista (index.html) | ✅ Completado | 2 |
-| Generación dinámica de ejercicios | ✅ Completado | 3 |
-| Fallback feedback dinámico | ✅ Completado | 3 |
-| Motor de dificultad adaptativa | ✅ Completado | 3 |
-| Ingesta masiva documentación Python | ✅ Completado | 4 |
-| API de aprendizaje + frontend docs | ✅ Completado | 4 |
-
----
-
-## 🔐 Conceptos Clave de la Tesis
-
-### Gating
-Sistema de progresión donde cada ejercicio debe ser superado para desbloquear el siguiente. SQLite registra intentos y estados.
-
-### Rote Learning
-Medición objetiva de cuántas iteraciones necesita un estudiante para dominar un concepto, basado en el historial de reintentos.
-
-### Evaluación Aislada
-Ejecución de código no confiable en contenedor Docker sin red, con recursos limitados y destrucción automática post-evaluación.
-
-### RAG Local
-Contexto enriquecido mediante búsqueda semántica en base de conocimiento vectorial, 100% offline.
-
-### Guardrails
-Restricciones programáticas que impiden que la IA revele soluciones directas, manteniendo un enfoque estrictamente socrático.
-
+**Guardrails** — programmatic restrictions that prevent the AI from revealing direct solutions,
+keeping the approach strictly Socratic.
