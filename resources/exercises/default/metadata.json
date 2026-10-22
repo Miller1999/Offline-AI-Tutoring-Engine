@@ -1,0 +1,7 @@
+{
+  "exercise_id": "default",
+  "title": "Print a sequence of numbers",
+  "instructions": "Write a function called `imprimir_numeros(n)` that prints the integers from 1 to n (inclusive), one per line. Calling it with 3 must print 1, 2 and 3 on separate lines. Calling it with 0 must print nothing.",
+  "expected_example": "imprimir_numeros(3) -> prints \"1\\n2\\n3\\n\"",
+  "difficulty": "beginner"
+}
