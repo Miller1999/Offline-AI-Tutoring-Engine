@@ -34,6 +34,12 @@ class TestSystem:
         assert body["llm"]
         assert body["version"]
 
+    def test_health_reports_the_readiness_of_the_model(self, client: TestClient) -> None:
+        body = client.get("/health").json()
+
+        assert "model_ready" in body
+        assert isinstance(body["model_ready"], bool)
+
     def test_index_serves_the_frontend(self, client: TestClient) -> None:
         response = client.get("/")
 

@@ -115,13 +115,31 @@ class SmokeRunner:
         def check(response: Any) -> tuple[bool, str, dict[str, Any]]:
             body = response.json()
             ok = response.status_code == 200 and body.get("status") in {"healthy", "degraded"}
-            return (
-                ok,
-                f"status={body.get('status')} llm={body.get('llm')} vector_store={body.get('vector_store')}",
-                body,
+            detail = (
+                f"status={body.get('status')} llm={body.get('llm')} "
+                f"vector_store={body.get('vector_store')} model_ready={body.get('model_ready')}"
             )
+            return ok, detail, body
 
         self._timed("health", action, check)
+
+    def wait_for_model(self, timeout: float = 300.0) -> bool:
+        """Wait until the local model reports itself as loaded.
+
+        The API loads the model in the background when it starts. Waiting for
+        it here keeps the measurements of the following steps comparable.
+        """
+        deadline = time.time() + timeout
+
+        while time.time() < deadline:
+            try:
+                if requests.get(f"{self.base_url}/health", timeout=10).json().get("model_ready"):
+                    return True
+            except requests.RequestException:
+                pass
+            time.sleep(2)
+
+        return False
 
     def check_default_exercise(self) -> None:
         def action() -> Any:
@@ -215,6 +233,12 @@ class SmokeRunner:
         self.check_health()
         self.check_default_exercise()
         self.evaluate("correct", CORRECT_SOLUTION, expect="success")
+
+        if self.wait_for_model():
+            self._record("model/warm-up", True, "the local model is loaded", 0.0)
+        else:
+            self._record("model/warm-up", False, "the model did not report itself as ready", 0.0)
+
         self.evaluate("wrong", WRONG_SOLUTION, expect="failure")
         self.evaluate("broken-syntax", BROKEN_SOLUTION, expect="failure")
 

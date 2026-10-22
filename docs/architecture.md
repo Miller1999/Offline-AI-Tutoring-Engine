@@ -107,6 +107,20 @@ interfere with each other. The Docker container adds a second boundary:
 - the container is destroyed right after the run (`--rm`)
 - the workspace is deleted in a `finally` block, even when the run fails
 
+## Local model footprint
+
+The latency of the tutor is not only a matter of model size: it depends on how the model is
+*configured* on the Ollama side, and the API does not leave that to chance.
+
+| Knob | Where | Why it matters |
+|------|-------|----------------|
+| `OLLAMA_CONTEXT_LENGTH` | `options.num_ctx` of every request | The KV cache grows with the context. A 32k context on a 7B model needs ~17GB of memory instead of ~5GB; on a 12GB GPU it spills into system RAM and every answer takes minutes. The API pins the value instead of inheriting the server-wide setting. |
+| `OLLAMA_KEEP_ALIVE` | `keep_alive` of every request | The Ollama default unloads the model after five minutes. The tutor asks for it to stay loaded so a session never pays a cold start mid-conversation. |
+| Warm-up | `orchestrator.warm_up_model()` | The API loads the model in a background thread during startup. `GET /health` exposes `model_ready` so a client can wait for it. |
+
+Measured on an RTX 5070 Ti (12GB) with `qwen2.5-coder:7b`: the end-to-end journey went from
+**436 s to 16 s** once the context window was pinned and the model was kept warm.
+
 ## Knowledge base
 
 `scripts/ingest_docs.py` walks a directory of `.txt` documentation, splits every file into

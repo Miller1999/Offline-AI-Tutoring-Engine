@@ -360,6 +360,8 @@ for the full list.
 | `TUTOR_LOCALE` | `es` | Language the tutor speaks to the students (`es` / `en`) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local LLM server |
 | `OLLAMA_MODEL` | `qwen2.5-coder:7b` | Model used by the tutor |
+| `OLLAMA_CONTEXT_LENGTH` | `8192` | Context window requested on every generation |
+| `OLLAMA_KEEP_ALIVE` | `30m` | How long the model stays loaded after a request |
 | `CHROMA_DIR` | `data/chroma` | Vector store location |
 | `CHROMA_COLLECTION` | `material_clase` | Collection name |
 | `SQLITE_PATH` | `data/tutor.db` | Gating and history database |
@@ -417,6 +419,7 @@ It walks the whole student journey and fails loudly on any deviation:
 | `health` | The API, the model and the vector store are reachable |
 | `exercises/default` | The built-in exercise is served |
 | `evaluate/correct` | A correct solution is reported as `success` |
+| `model/warm-up` | The local model is loaded and answers |
 | `evaluate/wrong` | A failing solution produces Socratic feedback — and *not* an intervention notice |
 | `evaluate/broken-syntax` | A submission that does not compile is reported as a **failure**, never as a success |
 | `generate` | The model returns a valid exercise and never leaks the hidden test suite |
@@ -426,9 +429,9 @@ It walks the whole student journey and fails loudly on any deviation:
 Add `--json report.json` to keep the machine-readable report, and `--skip-generate` to run
 everything except the two model-backed steps.
 
-> The first call after a period of inactivity pays the **model cold start** (around 25 s on a
-> GPU); the following ones answer in a couple of seconds. Keep the model warm with
-> `OLLAMA_KEEP_ALIVE=30m` on the Ollama side if the demo cannot afford that wait.
+> The harness waits for the model to report itself as ready, so the measured times are the
+> ones of a warm model. The very first answer of a session also pays the **cold start** of
+> the model (around 25 s on a GPU); the API loads it in the background when it starts.
 
 ---
 
@@ -473,6 +476,15 @@ running and has enough resources allocated.
 - Lower the temperature in `app/core/prompts.py` for a more deterministic output
 
 ### The tutor takes minutes to answer
+
+Three things control the latency of a local model, and the API pins the two that are usually
+left to the server configuration:
+
+| Setting | Effect |
+|---------|--------|
+| `OLLAMA_CONTEXT_LENGTH` | The KV cache of a wide context does not fit in a modest GPU. A 32k context on a 7B model needs ~17GB of RAM instead of ~5GB, and the model spills into system RAM — which turns every answer into a two-minute one. |
+| `OLLAMA_KEEP_ALIVE` | The Ollama default unloads the model after five minutes. The tutor asks for it to stay loaded, so a session does not pay a cold start in the middle of a conversation. |
+| Warm-up at startup | The API loads the model in a background thread when it starts. `GET /health` reports `model_ready` so a client can wait instead of timing out. |
 
 Check what Ollama actually has loaded:
 

@@ -7,6 +7,11 @@ Every one of those cases produces an exercise the student cannot solve, so the
 generator output is normalised before it is stored.
 """
 
+from typing import Any
+from unittest.mock import Mock
+
+from app.core.config import get_settings
+from app.services import orchestrator
 from app.services.orchestrator import (
     _ensure_student_import,
     _import_insertion_index,
@@ -96,3 +101,66 @@ class TestImportInsertionIndex:
         lines = ["from __future__ import annotations", "import pytest"]
 
         assert _import_insertion_index(lines) == 1
+
+
+class TestChatPayload:
+    """Every request pins the context window and the keep-alive.
+
+    Both values are inherited from the Ollama server configuration otherwise,
+    and a 32k context does not fit in a modest GPU: the model spills into
+    system RAM and every answer takes minutes.
+    """
+
+    @staticmethod
+    def _capture(monkeypatch: Any) -> dict[str, Any]:
+        captured: dict[str, Any] = {}
+
+        def fake_post(
+            url: str, json: dict[str, Any] | None = None, timeout: float | None = None
+        ) -> Any:
+            captured.update(json or {})
+            response = Mock()
+            response.json.return_value = {"message": {"content": "ok"}}
+            return response
+
+        monkeypatch.setattr(orchestrator.requests, "post", fake_post)
+        return captured
+
+    def test_pins_the_context_window(self, monkeypatch: Any) -> None:
+        captured = self._capture(monkeypatch)
+
+        orchestrator._chat("system", "user", get_settings())
+
+        assert captured["options"]["num_ctx"] == get_settings().ollama_context_length
+
+    def test_asks_the_server_to_keep_the_model_loaded(self, monkeypatch: Any) -> None:
+        captured = self._capture(monkeypatch)
+
+        orchestrator._chat("system", "user", get_settings())
+
+        assert captured["keep_alive"] == get_settings().ollama_keep_alive
+
+    def test_keeps_the_extra_parameters(self, monkeypatch: Any) -> None:
+        captured = self._capture(monkeypatch)
+
+        orchestrator._chat("system", "user", get_settings(), temperature=0.2, format="json")
+
+        assert captured["temperature"] == 0.2
+        assert captured["format"] == "json"
+
+
+class TestWarmUpModel:
+    """The model is loaded in the background when the API starts."""
+
+    def test_reports_success(self, monkeypatch: Any) -> None:
+        monkeypatch.setattr(orchestrator, "_chat", lambda *args, **kwargs: "ready")
+
+        assert orchestrator.warm_up_model() is True
+
+    def test_survives_an_unreachable_server(self, monkeypatch: Any) -> None:
+        def boom(*args: Any, **kwargs: Any) -> str:
+            raise orchestrator.requests.exceptions.ConnectionError("no server")
+
+        monkeypatch.setattr(orchestrator, "_chat", boom)
+
+        assert orchestrator.warm_up_model() is False
