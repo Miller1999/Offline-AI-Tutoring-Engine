@@ -1,0 +1,108 @@
+# ── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ── Virtual environments ───────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Tests & coverage ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.cache
+.hypothesis/
+nosetests.xml
+
+# ── Linters & type checkers ────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+
+# ── IDEs ────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.history/
+
+# ── OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── Logs ────────────────────────────────────────────────────────────────
+logs/
+*.log
+pip-log.txt
+
+# ── Secrets & local config ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+certs/
+
+# ── Project runtime data ───────────────────────────────────────────────
+# Legacy runtime paths (pre-restructure layout, removed in the refactor)
+bd_vectorial/
+gating_estudiantes.db
+test_dinamico_*.py
+ejercicio_alumno.py
+test_ejercicio.py
+
+# ChromaDB vector store — rebuild with: python scripts/ingest_docs.py
+data/chroma/
+# SQLite tutoring history (runtime state)
+data/*.db
+data/*.db-journal
+data/*.sqlite3
+# Docker sandbox working directory (student code, pytest reports)
+data/sandbox/
+# Generated pytest reports
+report.json
+reporte.json
+# Student submissions & generated tests (runtime artifacts)
+exercise_student.py
+test_exercise.py
+test_dynamic_*.py
