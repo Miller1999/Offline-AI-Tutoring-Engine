@@ -60,13 +60,25 @@ _BLOCKED_RESPONSE_PATTERNS: Final[tuple[str, ...]] = (
     r"def\s+\w+\s*\(",  # Python function definitions
     r"class\s+\w+",  # Class definitions
     r"print\s*\(",  # Print statements (direct solutions)
-    r"return\s+\w+",  # Return statements with a concrete value
+    # A return statement carrying a concrete value. The value has to be a
+    # literal or a call: prose such as "what should it return so that the
+    # assertion passes?" is a legitimate Socratic question and must survive.
+    r"return\s*(?:[\"'\d]|True\b|False\b|None\b|[A-Za-z_]\w*\s*\()",
+    # Spanish leaks
     r"soluci[oó]n\s*:",  # "Solución:" headers
     r"respuesta\s*:",  # "Respuesta:" headers
     r"aqu[ií]\s+(est[aá]n?\s+)?(el|la|los|las)\s+(c[oó]digo|soluci[oó]n|respuesta)",
     r"te\s+(voy\s+)?a\s+(dar|decir|mostrar|escribir)\s+(la\s+)?(soluci[oó]n|respuesta|c[oó]digo)",
     r"el\s+siguiente\s+c[oó]digo",
     r"(c[oó]digo|soluci[oó]n)\s+(correct[oa]|complet[oa]|final)",
+    # English leaks — the tutor can be configured to speak English, so the
+    # guardrails cannot rely on the Spanish wording only.
+    r"solution\s*:",
+    r"answer\s*:",
+    r"here\s+(is|are)\s+the\s+(code|solution|answer)",
+    r"(i|we)\s+(will|can|am going to)\s+(give|show|tell)\s+you\s+the\s+(code|solution|answer)",
+    r"the\s+(next|following)\s+code",
+    r"(code|solution)\s+(correct|complete|final)",
 )
 
 #: Characters allowed in a student identifier.

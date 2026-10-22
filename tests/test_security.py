@@ -72,6 +72,25 @@ class TestValidateAiResponse:
 
         assert validate_ai_response(answer) == answer
 
+    def test_keeps_questions_that_mention_a_return_value(self) -> None:
+        answer = "What value should the function return so that the assertion passes?"
+
+        assert validate_ai_response(answer) == answer
+
+    def test_keeps_questions_asking_for_a_return_statement(self) -> None:
+        answer = "Did you remember to return the total of the list?"
+
+        assert validate_ai_response(answer) == answer
+
+    def test_blocks_a_return_statement_with_a_literal(self) -> None:
+        assert validate_ai_response("return 5") == INTERVENTION_MESSAGE
+
+    def test_blocks_english_leaks(self) -> None:
+        assert validate_ai_response("Here is the code you need") == INTERVENTION_MESSAGE
+
+    def test_blocks_english_solution_headers(self) -> None:
+        assert validate_ai_response("Solution: use a for loop") == INTERVENTION_MESSAGE
+
 
 class TestValidateStudentId:
     """Student identifiers end up in file paths, so they must be strict."""
