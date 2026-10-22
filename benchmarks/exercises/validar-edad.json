@@ -1,0 +1,11 @@
+{
+  "id": "validar-edad",
+  "topic": "excepciones y validación",
+  "difficulty": "advanced",
+  "instructions": "Escribe una función llamada `parsear_edad(texto)` que convierta el texto recibido en una edad entera. Si el texto no es un número entero debe lanzar una excepción `ValueError` con un mensaje claro. Si la edad no está entre 0 y 120 también debe lanzar una `ValueError`. Los espacios alrededor del número se ignoran.",
+  "expected_example": "parsear_edad(\" 25 \") -> devuelve 25",
+  "starter_code": "def parsear_edad(texto):\n    \"\"\"Convierte el texto en una edad válida o lanza una ValueError.\"\"\"\n    pass\n",
+  "solution_code": "def parsear_edad(texto):\n    try:\n        edad = int(str(texto).strip())\n    except (TypeError, ValueError) as exc:\n        raise ValueError(\"La edad debe ser un numero entero\") from exc\n    if not 0 <= edad <= 120:\n        raise ValueError(\"La edad debe estar entre 0 y 120\")\n    return edad\n",
+  "failure_code": "def parsear_edad(texto):\n    return int(str(texto).strip())\n",
+  "test_code": "import pytest\n\nfrom exercise_student import parsear_edad\n\n\ndef test_parsea_una_edad_valida():\n    assert parsear_edad(\" 25 \") == 25\n\n\ndef test_rechaza_un_texto_no_numerico():\n    with pytest.raises(ValueError):\n        parsear_edad(\"abc\")\n\n\ndef test_rechaza_una_edad_fuera_de_rango():\n    with pytest.raises(ValueError):\n        parsear_edad(\"150\")\n"
+}

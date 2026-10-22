@@ -1,0 +1,11 @@
+{
+  "id": "suma-lista",
+  "topic": "listas y sumas",
+  "difficulty": "beginner",
+  "instructions": "Escribe una función llamada `sumar_elementos(numeros)` que devuelva la suma de todos los números de una lista. Si la lista está vacía debe devolver 0.",
+  "expected_example": "sumar_elementos([1, 2, 3]) -> devuelve 6",
+  "starter_code": "def sumar_elementos(numeros):\n    \"\"\"Devuelve la suma de todos los números de la lista.\"\"\"\n    pass\n",
+  "solution_code": "def sumar_elementos(numeros):\n    total = 0\n    for numero in numeros:\n        total += numero\n    return total\n",
+  "failure_code": "def sumar_elementos(numeros):\n    return 0\n",
+  "test_code": "from exercise_student import sumar_elementos\n\n\ndef test_suma_de_una_lista():\n    assert sumar_elementos([1, 2, 3]) == 6\n\n\ndef test_suma_de_una_lista_vacia():\n    assert sumar_elementos([]) == 0\n\n\ndef test_suma_con_valores_negativos():\n    assert sumar_elementos([4, -1, 2]) == 5\n"
+}

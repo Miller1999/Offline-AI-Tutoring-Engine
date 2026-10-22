@@ -1,0 +1,11 @@
+{
+  "id": "palindromo",
+  "topic": "cadenas de texto",
+  "difficulty": "intermediate",
+  "instructions": "Escribe una función llamada `es_palindromo(texto)` que devuelva `True` cuando el texto se lee igual de izquierda a derecha que de derecha a izquierda, ignorando mayúsculas y espacios. Un texto vacío es un palíndromo.",
+  "expected_example": "es_palindromo(\"Anita lava la tina\") -> devuelve True",
+  "starter_code": "def es_palindromo(texto):\n    \"\"\"Indica si el texto es un palíndromo, ignorando mayúsculas y espacios.\"\"\"\n    pass\n",
+  "solution_code": "def es_palindromo(texto):\n    limpio = texto.lower().replace(\" \", \"\")\n    return limpio == limpio[::-1]\n",
+  "failure_code": "def es_palindromo(texto):\n    limpio = texto.lower().replace(\" \", \"\")\n    return limpio == limpio\n",
+  "test_code": "from exercise_student import es_palindromo\n\n\ndef test_reconoce_un_palindromo():\n    assert es_palindromo(\"Anita lava la tina\") is True\n\n\ndef test_rechaza_una_palabra_normal():\n    assert es_palindromo(\"Python\") is False\n\n\ndef test_el_texto_vacio_es_un_palindromo():\n    assert es_palindromo(\"\") is True\n"
+}

@@ -129,21 +129,21 @@ class TestChatPayload:
     def test_pins_the_context_window(self, monkeypatch: Any) -> None:
         captured = self._capture(monkeypatch)
 
-        orchestrator._chat("system", "user", get_settings())
+        orchestrator.ask_model("system", "user", get_settings())
 
         assert captured["options"]["num_ctx"] == get_settings().ollama_context_length
 
     def test_asks_the_server_to_keep_the_model_loaded(self, monkeypatch: Any) -> None:
         captured = self._capture(monkeypatch)
 
-        orchestrator._chat("system", "user", get_settings())
+        orchestrator.ask_model("system", "user", get_settings())
 
         assert captured["keep_alive"] == get_settings().ollama_keep_alive
 
     def test_keeps_the_extra_parameters(self, monkeypatch: Any) -> None:
         captured = self._capture(monkeypatch)
 
-        orchestrator._chat("system", "user", get_settings(), temperature=0.2, format="json")
+        orchestrator.ask_model("system", "user", get_settings(), temperature=0.2, format="json")
 
         assert captured["temperature"] == 0.2
         assert captured["format"] == "json"
@@ -153,7 +153,7 @@ class TestWarmUpModel:
     """The model is loaded in the background when the API starts."""
 
     def test_reports_success(self, monkeypatch: Any) -> None:
-        monkeypatch.setattr(orchestrator, "_chat", lambda *args, **kwargs: "ready")
+        monkeypatch.setattr(orchestrator, "ask_model", lambda *args, **kwargs: "ready")
 
         assert orchestrator.warm_up_model() is True
 
@@ -161,6 +161,6 @@ class TestWarmUpModel:
         def boom(*args: Any, **kwargs: Any) -> str:
             raise orchestrator.requests.exceptions.ConnectionError("no server")
 
-        monkeypatch.setattr(orchestrator, "_chat", boom)
+        monkeypatch.setattr(orchestrator, "ask_model", boom)
 
         assert orchestrator.warm_up_model() is False

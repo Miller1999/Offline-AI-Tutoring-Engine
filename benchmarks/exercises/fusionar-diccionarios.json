@@ -1,0 +1,11 @@
+{
+  "id": "fusionar-diccionarios",
+  "topic": "diccionarios y actualización",
+  "difficulty": "intermediate",
+  "instructions": "Escribe una función llamada `fusionar_diccionarios(primero, segundo)` que devuelva un diccionario nuevo con las claves de ambos. Cuando una clave está en los dos, el valor del segundo diccionario gana. Ninguno de los diccionarios de entrada debe modificarse.",
+  "expected_example": "fusionar_diccionarios({\"a\": 1}, {\"b\": 2}) -> devuelve {\"a\": 1, \"b\": 2}",
+  "starter_code": "def fusionar_diccionarios(primero, segundo):\n    \"\"\"Devuelve la fusión de ambos diccionarios.\"\"\"\n    pass\n",
+  "solution_code": "def fusionar_diccionarios(primero, segundo):\n    resultado = dict(primero)\n    resultado.update(segundo)\n    return resultado\n",
+  "failure_code": "def fusionar_diccionarios(primero, segundo):\n    return dict(segundo)\n",
+  "test_code": "from exercise_student import fusionar_diccionarios\n\n\ndef test_fusiona_las_claves_de_ambos():\n    assert fusionar_diccionarios({\"a\": 1}, {\"b\": 2}) == {\"a\": 1, \"b\": 2}\n\n\ndef test_el_segundo_diccionario_gana():\n    assert fusionar_diccionarios({\"a\": 1}, {\"a\": 2}) == {\"a\": 2}\n"
+}

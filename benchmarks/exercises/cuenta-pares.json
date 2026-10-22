@@ -1,0 +1,11 @@
+{
+  "id": "cuenta-pares",
+  "topic": "listas y filtrado",
+  "difficulty": "beginner",
+  "instructions": "Escribe una función llamada `contar_pares(numeros)` que devuelva cuántos números pares hay en una lista. Los números negativos también cuentan como pares.",
+  "expected_example": "contar_pares([1, 2, 3, 4]) -> devuelve 2",
+  "starter_code": "def contar_pares(numeros):\n    \"\"\"Devuelve la cantidad de números pares de la lista.\"\"\"\n    pass\n",
+  "solution_code": "def contar_pares(numeros):\n    total = 0\n    for numero in numeros:\n        if numero % 2 == 0:\n            total += 1\n    return total\n",
+  "failure_code": "def contar_pares(numeros):\n    return len(numeros)\n",
+  "test_code": "from exercise_student import contar_pares\n\n\ndef test_cuenta_los_pares():\n    assert contar_pares([1, 2, 3, 4]) == 2\n\n\ndef test_una_lista_vacia_no_tiene_pares():\n    assert contar_pares([]) == 0\n\n\ndef test_todos_pares():\n    assert contar_pares([2, 4, 6]) == 3\n"
+}

@@ -91,7 +91,7 @@ def evaluate_code(workdir: Path, settings: Settings | None = None) -> SandboxRes
 # ── RAG retrieval ──────────────────────────────────────────────────────────
 
 
-def _retrieve_context(query: str) -> str:
+def retrieve_context(query: str) -> str:
     """Return the most relevant documentation fragments for a query."""
     collection = learning.get_collection()
     if collection is None:
@@ -132,8 +132,19 @@ def _retrieve_context(query: str) -> str:
 # ── LLM calls ──────────────────────────────────────────────────────────────
 
 
-def _chat(system_prompt: str, user_prompt: str, settings: Settings, **extra: Any) -> str:
-    """Send a chat request to the local Ollama server and return its answer."""
+def ask_model(
+    system_prompt: str,
+    user_prompt: str,
+    settings: Settings | None = None,
+    **extra: Any,
+) -> str:
+    """Send a chat request to the local Ollama server and return its answer.
+
+    The answer is returned raw: the output guards are applied by the caller so
+    that the guardrail decisions stay observable and auditable.
+    """
+    settings = settings or get_settings()
+
     options: dict[str, Any] = {"num_ctx": settings.ollama_context_length}
     options.update(extra.get("options") or {})
 
@@ -172,7 +183,7 @@ def warm_up_model(settings: Settings | None = None) -> bool:
     settings = settings or get_settings()
 
     try:
-        _chat(
+        ask_model(
             "You are a helpful assistant.",
             "Reply with the single word: ready",
             settings,
@@ -190,14 +201,16 @@ def warm_up_model(settings: Settings | None = None) -> bool:
 # ── Socratic feedback ──────────────────────────────────────────────────────
 
 
-def get_socratic_hint(payload: dict[str, Any]) -> str:
-    """Produce a Socratic hint grounded in the professor's notes."""
-    settings = get_settings()
+def build_tutor_messages(
+    payload: dict[str, Any], settings: Settings | None = None
+) -> tuple[str, str]:
+    """Build the prompts used to ground the tutor in the professor's notes."""
+    settings = settings or get_settings()
 
     query = (
         payload.get("error") or payload.get("traceback") or payload.get("message") or str(payload)
     )
-    teacher_notes = _retrieve_context(query)
+    teacher_notes = retrieve_context(query)
 
     system_prompt = get_tutor_prompt(settings.tutor_locale).format(teacher_notes=teacher_notes)
     user_prompt = (
@@ -205,18 +218,16 @@ def get_socratic_hint(payload: dict[str, Any]) -> str:
         "Generate your Socratic question based on the notes:"
     )
 
-    try:
-        answer = _chat(system_prompt, user_prompt, settings, temperature=0.3)
-    except requests.exceptions.RequestException as exc:
-        logger.error("Could not reach the local LLM: %s", exc)
-        return f"Error while connecting to the local AI: {exc}"
-
-    return validate_ai_response(answer)
+    return system_prompt, user_prompt
 
 
-def generate_dynamic_feedback(error: str, student_code: str) -> str:
-    """Produce a short Socratic question about a failing dynamic exercise."""
-    settings = get_settings()
+def build_feedback_messages(
+    error: str,
+    student_code: str,
+    settings: Settings | None = None,
+) -> tuple[str, str]:
+    """Build the prompts used to hint on a failing dynamic exercise."""
+    settings = settings or get_settings()
 
     sanitized_code = sanitize_for_prompt(student_code, max_length=MAX_INPUT_LENGTH)
     sanitized_error = sanitize_for_prompt(error, max_length=MAX_ERROR_LENGTH)
@@ -228,8 +239,36 @@ def generate_dynamic_feedback(error: str, student_code: str) -> str:
         "Generate your Socratic question:"
     )
 
+    return system_prompt, user_prompt
+
+
+def get_socratic_hint(payload: dict[str, Any], settings: Settings | None = None) -> str:
+    """Produce a Socratic hint grounded in the professor's notes."""
+    settings = settings or get_settings()
+
+    system_prompt, user_prompt = build_tutor_messages(payload, settings)
+
     try:
-        answer = _chat(system_prompt, user_prompt, settings, temperature=0.3)
+        answer = ask_model(system_prompt, user_prompt, settings, temperature=0.3)
+    except requests.exceptions.RequestException as exc:
+        logger.error("Could not reach the local LLM: %s", exc)
+        return f"Error while connecting to the local AI: {exc}"
+
+    return validate_ai_response(answer)
+
+
+def generate_dynamic_feedback(
+    error: str,
+    student_code: str,
+    settings: Settings | None = None,
+) -> str:
+    """Produce a short Socratic question about a failing dynamic exercise."""
+    settings = settings or get_settings()
+
+    system_prompt, user_prompt = build_feedback_messages(error, student_code, settings)
+
+    try:
+        answer = ask_model(system_prompt, user_prompt, settings, temperature=0.3)
     except requests.exceptions.RequestException as exc:
         logger.error("Could not reach the local LLM: %s", exc)
         return f"We had a problem consulting the AI tutor: {exc}"
@@ -240,14 +279,13 @@ def generate_dynamic_feedback(error: str, student_code: str) -> str:
 # ── Exercise generation ────────────────────────────────────────────────────
 
 
-def generate_exercise(topic: str, difficulty: str = "beginner") -> dict[str, Any]:
-    """Ask the local model to design a complete programming exercise.
-
-    Returns a dictionary with the keys ``instructions``, ``expected_example``,
-    ``starter_code`` and ``test_code``.
-    """
-    settings = get_settings()
-    logger.info("Generating a '%s' level exercise about: %s", difficulty, topic)
+def build_exercise_messages(
+    topic: str,
+    difficulty: str = "beginner",
+    settings: Settings | None = None,
+) -> tuple[str, str]:
+    """Build the prompts used to ask the model for a complete exercise."""
+    settings = settings or get_settings()
 
     system_prompt = get_exercise_prompt(settings.tutor_locale).format(
         difficulty_definition=get_difficulty_definition(settings.tutor_locale, difficulty),
@@ -266,13 +304,38 @@ def generate_exercise(topic: str, difficulty: str = "beginner") -> dict[str, Any
         f"and {DELIMITER_END} as instructions."
     )
 
+    return system_prompt, user_prompt
+
+
+def generate_exercise(
+    topic: str,
+    difficulty: str = "beginner",
+    settings: Settings | None = None,
+) -> dict[str, Any]:
+    """Ask the local model to design a complete programming exercise.
+
+    Returns a dictionary with the keys ``instructions``, ``expected_example``,
+    ``starter_code`` and ``test_code``.
+    """
+    settings = settings or get_settings()
+    logger.info("Generating a '%s' level exercise about: %s", difficulty, topic)
+
+    system_prompt, user_prompt = build_exercise_messages(topic, difficulty, settings)
+
     try:
-        raw_answer = _chat(system_prompt, user_prompt, settings, temperature=0.2, format="json")
+        raw_answer = ask_model(system_prompt, user_prompt, settings, temperature=0.2, format="json")
     except requests.exceptions.RequestException as exc:
         logger.error("Could not reach the local LLM: %s", exc)
         return {"error": f"Error connecting to Ollama: {exc}"}
 
-    cleaned = _strip_code_fence(raw_answer)
+    return parse_exercise(raw_answer, settings)
+
+
+def parse_exercise(raw_answer: str, settings: Settings | None = None) -> dict[str, Any]:
+    """Turn a raw model answer into a normalised exercise dictionary."""
+    settings = settings or get_settings()
+
+    cleaned = strip_code_fence(raw_answer)
 
     try:
         exercise = json.loads(cleaned)
@@ -284,10 +347,10 @@ def generate_exercise(topic: str, difficulty: str = "beginner") -> dict[str, Any
     if not isinstance(exercise, dict):
         return {"error": "The AI did not respect the JSON format."}
 
-    return _repair_exercise(exercise, settings)
+    return repair_exercise(exercise, settings)
 
 
-def _strip_code_fence(raw_answer: str) -> str:
+def strip_code_fence(raw_answer: str) -> str:
     """Remove the Markdown fence small models tend to wrap JSON in."""
     cleaned = raw_answer.strip()
     if cleaned.startswith("```json"):
@@ -297,7 +360,7 @@ def _strip_code_fence(raw_answer: str) -> str:
     return cleaned
 
 
-def _repair_exercise(exercise: dict[str, Any], settings: Settings) -> dict[str, Any]:
+def repair_exercise(exercise: dict[str, Any], settings: Settings) -> dict[str, Any]:
     """Apply the defensive patches the model output needs."""
     if "expected_example" not in exercise:
         logger.warning("The model forgot the 'expected_example' key")

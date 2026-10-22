@@ -77,3 +77,5 @@
 | The rate limiter is in-process | `app/api/dependencies.py` | Not shared between workers |
 | The guardrails are blocklists | `app/core/security.py` | Bypassable with unusual phrasing |
 | No authentication | — | Anonymous clients, self-declared student id |
+
+- [x] **Model benchmark harness** – Versioned exercise corpus validated against the real Docker sandbox; compares local models on exercise generation and Socratic feedback using the production prompts, guards and sandbox (scripts/benchmark.py, enchmarks/).

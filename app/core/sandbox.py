@@ -38,6 +38,10 @@ class SandboxResult:
     stdout: str = ""
     stderr: str = ""
     infrastructure_error: str | None = None
+    #: True when the test module could not even be imported. A collection
+    #: error means the exercise itself is broken, which is a different problem
+    #: from a wrong answer, so the two are reported separately.
+    collection_error: bool = False
 
     def to_payload(self) -> dict[str, Any]:
         """Return the normalised payload consumed by the API layer."""
@@ -98,6 +102,7 @@ def parse_report(report: dict[str, Any]) -> SandboxResult:
             failed_test=collector.get("nodeid") or None,
             error=_extract_error_message(longrepr) or "The test module could not be imported.",
             traceback=longrepr,
+            collection_error=True,
         )
 
     for test in report.get("tests", []):

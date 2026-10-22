@@ -1,0 +1,11 @@
+{
+  "id": "frecuencias",
+  "topic": "diccionarios",
+  "difficulty": "intermediate",
+  "instructions": "Escribe una función llamada `contar_palabras(texto)` que devuelva un diccionario con la cantidad de apariciones de cada palabra del texto. Las palabras se cuentan en minúsculas y se ignoran las comas y los puntos que las rodean.",
+  "expected_example": "contar_palabras(\"uno, dos. uno\") -> devuelve {\"uno\": 2, \"dos\": 1}",
+  "starter_code": "def contar_palabras(texto):\n    \"\"\"Devuelve un diccionario con la frecuencia de cada palabra.\"\"\"\n    pass\n",
+  "solution_code": "def contar_palabras(texto):\n    conteo = {}\n    for palabra in texto.lower().split():\n        limpia = palabra.strip(\",.\")\n        if not limpia:\n            continue\n        conteo[limpia] = conteo.get(limpia, 0) + 1\n    return conteo\n",
+  "failure_code": "def contar_palabras(texto):\n    return {}\n",
+  "test_code": "from exercise_student import contar_palabras\n\n\ndef test_cuenta_cada_palabra():\n    assert contar_palabras(\"hola mundo hola\") == {\"hola\": 2, \"mundo\": 1}\n\n\ndef test_ignora_la_puntuacion():\n    assert contar_palabras(\"uno, dos. uno\") == {\"uno\": 2, \"dos\": 1}\n"
+}
