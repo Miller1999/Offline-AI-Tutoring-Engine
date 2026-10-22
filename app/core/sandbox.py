@@ -23,6 +23,9 @@ REPORT_FILENAME: Final[str] = "report.json"
 #: Message shown when every assertion passed.
 ALL_TESTS_PASSED_MESSAGE: Final[str] = "All tests passed correctly. Great work!"
 
+#: Pytest phases, in the order in which they run.
+TEST_PHASES: Final[tuple[str, ...]] = ("setup", "call", "teardown")
+
 
 @dataclass
 class SandboxResult:
@@ -75,21 +78,85 @@ def build_docker_command(workdir: Path, settings: Settings) -> list[str]:
 
 
 def parse_report(report: dict[str, Any]) -> SandboxResult:
-    """Turn a ``pytest-json-report`` payload into a :class:`SandboxResult`."""
+    """Turn a ``pytest-json-report`` payload into a :class:`SandboxResult`.
+
+    Three failure shapes are distinguished, because they reach the student
+    through very different messages:
+
+    * a **collection** error — the test module does not even import, typically
+      because the student code has a syntax error or does not define the
+      expected function. Pytest reports it on the collector and leaves the
+      ``tests`` list empty, so it has to be handled *before* the test loop;
+    * a failure in the **setup** phase — a broken fixture;
+    * a regular **assertion** failure, reported in the ``call`` phase.
+    """
+    collector = _failed_collector(report)
+    if collector is not None:
+        longrepr = collector.get("longrepr") or ""
+        return SandboxResult(
+            passed=False,
+            failed_test=collector.get("nodeid") or None,
+            error=_extract_error_message(longrepr) or "The test module could not be imported.",
+            traceback=longrepr,
+        )
+
     for test in report.get("tests", []):
         if test.get("outcome") != "failed":
             continue
 
-        call = test.get("call", {}) or {}
-        crash = call.get("crash", {}) or {}
+        for phase in TEST_PHASES:
+            phase_data = test.get(phase) or {}
+            if phase_data.get("outcome") != "failed":
+                continue
+
+            crash = phase_data.get("crash") or {}
+            return SandboxResult(
+                passed=False,
+                failed_test=test.get("nodeid"),
+                error=crash.get("message") or phase_data.get("longrepr") or "Unknown error",
+                traceback=phase_data.get("longrepr", ""),
+            )
+
+    if report.get("exitcode") not in (0, None) and not (report.get("summary") or {}).get("failed"):
+        # The run died without reporting a single failing test (an interrupted
+        # session, a crashed interpreter, no test collected at all).
         return SandboxResult(
             passed=False,
-            failed_test=test.get("nodeid"),
-            error=crash.get("message") or call.get("longrepr") or "Unknown error",
-            traceback=call.get("longrepr", ""),
+            error="The test run did not complete.",
+            traceback=(report.get("stderr") or ""),
         )
 
     return SandboxResult(passed=True)
+
+
+def _failed_collector(report: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the first collector that failed, if any."""
+    for collector in report.get("collectors", []):
+        if collector.get("outcome") == "failed":
+            return collector
+    return None
+
+
+def _extract_error_message(longrepr: str) -> str:
+    """Extract the human readable error block out of a pytest longrepr.
+
+    Pytest prefixes the offending lines with ``E ``. Those lines carry the
+    actual exception — the most useful part for the tutor — so they are
+    extracted and the traceback machinery around them discarded.
+    """
+    if not longrepr:
+        return ""
+
+    error_lines = [
+        line[2:] if line.startswith("E ") else line[1:]
+        for line in longrepr.splitlines()
+        if line.startswith("E")
+    ]
+    if error_lines:
+        return "\n".join(error_lines).strip()
+
+    lines = [line.strip() for line in longrepr.splitlines() if line.strip()]
+    return lines[-1] if lines else ""
 
 
 def run_in_sandbox(workdir: Path, settings: Settings | None = None) -> SandboxResult:
