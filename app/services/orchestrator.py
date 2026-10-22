@@ -198,7 +198,7 @@ def generate_dynamic_feedback(error: str, student_code: str) -> str:
 # ── Exercise generation ────────────────────────────────────────────────────
 
 
-def generate_exercise(topic: str, difficulty: str = "basico") -> dict[str, Any]:
+def generate_exercise(topic: str, difficulty: str = "beginner") -> dict[str, Any]:
     """Ask the local model to design a complete programming exercise.
 
     Returns a dictionary with the keys ``instructions``, ``expected_example``,
@@ -264,16 +264,88 @@ def _repair_exercise(exercise: dict[str, Any], settings: Settings) -> dict[str, 
             "Read the instructions carefully!"
         )
 
-    test_code = exercise.get("test_code", "") or ""
-    import_statement = f"from {settings.student_module_name} import "
-
-    if import_statement not in test_code:
-        match = re.search(r"def\s+([a-zA-Z0-9_]+)\s*\(", exercise.get("starter_code", "") or "")
-        if match:
-            function_name = match.group(1)
-            patched = "\n" + import_statement + function_name + "\n"
-            exercise["test_code"] = test_code.replace("import pytest", "import pytest" + patched)
-        else:
-            logger.warning("Could not extract the function name for the defensive patch")
+    exercise["test_code"] = _ensure_student_import(
+        test_code=exercise.get("test_code", "") or "",
+        starter_code=exercise.get("starter_code", "") or "",
+        module_name=settings.student_module_name,
+    )
 
     return exercise
+
+
+def _starter_function_name(starter_code: str) -> str | None:
+    """Return the name of the first function defined by the starter code."""
+    match = re.search(r"def\s+([A-Za-z_]\w*)\s*\(", starter_code)
+    return match.group(1) if match else None
+
+
+def _ensure_student_import(test_code: str, starter_code: str, module_name: str) -> str:
+    """Make sure the hidden test suite imports the student module.
+
+    Small models regularly forget the import, import a name that does not
+    exist in the starter code, or import the student module under a different
+    name. Every one of those cases breaks the exercise for the student, so the
+    import is normalised against the function the starter code defines.
+    """
+    expected_name = _starter_function_name(starter_code)
+    if not expected_name:
+        logger.warning("Could not extract the function name for the defensive patch")
+        return test_code
+
+    module_import = re.compile(rf"from\s+{re.escape(module_name)}\s+import\s+([A-Za-z_]\w*)")
+    match = module_import.search(test_code)
+
+    if match:
+        if match.group(1) == expected_name:
+            return test_code
+        logger.warning(
+            "The generated test imported '%s' instead of '%s'; the import was corrected",
+            match.group(1),
+            expected_name,
+        )
+        return module_import.sub(f"from {module_name} import {expected_name}", test_code, count=1)
+
+    foreign = re.search(rf"from\s+(\w+)\s+import\s+{re.escape(expected_name)}\b", test_code)
+    if foreign:
+        logger.warning(
+            "The generated test imported the student module as '%s'; the import was corrected",
+            foreign.group(1),
+        )
+        return re.sub(
+            rf"from\s+{re.escape(foreign.group(1))}\s+import\s+{re.escape(expected_name)}",
+            f"from {module_name} import {expected_name}",
+            test_code,
+            count=1,
+        )
+
+    logger.warning("The generated test did not import the student module; the import was added")
+    return _insert_import(test_code, f"from {module_name} import {expected_name}")
+
+
+def _insert_import(test_code: str, import_line: str) -> str:
+    """Insert an import statement in a position that keeps the file valid."""
+    lines = test_code.splitlines()
+    lines.insert(_import_insertion_index(lines), import_line)
+    return "\n".join(lines)
+
+
+def _import_insertion_index(lines: list[str]) -> int:
+    """Return the line index where an import statement can safely be inserted."""
+    index = 0
+
+    # A module docstring must remain the first statement of the file.
+    if lines and lines[0].lstrip().startswith(('"""', "'''")):
+        quote = lines[0].lstrip()[:3]
+        if lines[0].count(quote) >= 2:
+            index = 1
+        else:
+            for position in range(1, len(lines)):
+                if quote in lines[position]:
+                    index = position + 1
+                    break
+
+    # ``from __future__`` imports must precede every other import.
+    while index < len(lines) and lines[index].startswith("from __future__"):
+        index += 1
+
+    return index
