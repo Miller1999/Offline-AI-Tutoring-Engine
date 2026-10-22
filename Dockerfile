@@ -1,13 +1,17 @@
-# Usamos una imagen muy ligera de Python
-FROM python:3.14-alpine
+# Sandbox image used to evaluate untrusted student code.
+#
+# The container is started with:
+#   docker run --rm --network none --memory 256m --cpus 0.5 -v <workdir>:/app sandbox-evaluador
+#
+# The working directory contains exactly two files:
+#   exercise_student.py  — the solution uploaded by the student
+#   test_exercise.py     — the hidden test suite
+FROM python:3.12-alpine
 
-# Establecemos el directorio de trabajo
 WORKDIR /app
 
-# Instalamos pytest y el plugin para generar reportes JSON
+# pytest plus the plugin that writes the structured JSON report.
 RUN pip install --no-cache-dir pytest pytest-json-report
 
-# El comando por defecto al iniciar el contenedor:
-# Ejecuta pytest, genera el reporte JSON en la terminal (stdout) y no crea archivos residuales.
-# Generamos el reporte en un archivo físico dentro del contenedor
-CMD ["pytest", "test_ejercicio.py", "--json-report", "--json-report-file=reporte.json"]
+# The report is written inside the mounted workspace so the host can read it.
+CMD ["pytest", "test_exercise.py", "--json-report", "--json-report-file=report.json"]
