@@ -47,6 +47,7 @@ tracks student progress with SQLite gating and rote-learning metrics.
 | 🔍 **Semantic documentation search** | Browse and search the documentation from the frontend | ✅ |
 | 🚫 **Hard guardrails** | Several layers prevent the AI from revealing the solution | ✅ |
 | 🧪 **Test suite** | Unit and API tests covering security, persistence, RAG and routing | ✅ |
+| 🔎 **Smoke test** | An end-to-end harness that drives the real API, the real sandbox and the real LLM | ✅ |
 
 ---
 
@@ -280,13 +281,16 @@ The hidden test suite is never part of the response.
 │
 ├── scripts/
 │   ├── ingest_docs.py          # Mass ingestion of the documentation
-│   └── seed_rag.py             # Loads the professor notes into the store
+│   ├── seed_rag.py             # Loads the professor notes into the store
+│   └── smoke_test.py           # End-to-end verification of the whole stack
 │
 ├── tests/                      # pytest suite
 │   ├── conftest.py
 │   ├── test_security.py
 │   ├── test_database.py
 │   ├── test_learning.py
+│   ├── test_sandbox.py
+│   ├── test_orchestrator.py
 │   └── test_api.py
 │
 ├── docs/                       # Architecture, security, roadmap, sprint notes
@@ -395,6 +399,39 @@ The CI workflow (`.github/workflows/ci.yml`) runs the same checks on Python 3.12
 
 ---
 
+## 🔎 Verifying the installation
+
+The unit tests stub the sandbox and the vector store, so they prove the logic but not the
+installation. The smoke test exercises the **real** stack: the real Docker sandbox, the real
+ChromaDB store and the real local model.
+
+```bash
+make build-sandbox          # docker build -t sandbox-evaluador .
+make smoke                  # starts a server, drives the API, prints timings
+```
+
+It walks the whole student journey and fails loudly on any deviation:
+
+| Step | What it proves |
+|------|----------------|
+| `health` | The API, the model and the vector store are reachable |
+| `exercises/default` | The built-in exercise is served |
+| `evaluate/correct` | A correct solution is reported as `success` |
+| `evaluate/wrong` | A failing solution produces Socratic feedback — and *not* an intervention notice |
+| `evaluate/broken-syntax` | A submission that does not compile is reported as a **failure**, never as a success |
+| `generate` | The model returns a valid exercise and never leaks the hidden test suite |
+| `evaluate/dynamic-starter` | A generated exercise is evaluated against its own hidden tests |
+| `learning/stats` | The knowledge base holds chunks |
+
+Add `--json report.json` to keep the machine-readable report, and `--skip-generate` to run
+everything except the two model-backed steps.
+
+> The first call after a period of inactivity pays the **model cold start** (around 25 s on a
+> GPU); the following ones answer in a couple of seconds. Keep the model warm with
+> `OLLAMA_KEEP_ALIVE=30m` on the Ollama side if the demo cannot afford that wait.
+
+---
+
 ## 🔧 Troubleshooting
 
 ### `docker: command not found`
@@ -435,12 +472,36 @@ running and has enough resources allocated.
 - Use `qwen2.5-coder:7b` rather than the 1.5B variant
 - Lower the temperature in `app/core/prompts.py` for a more deterministic output
 
+### The tutor takes minutes to answer
+
+Check what Ollama actually has loaded:
+
+```bash
+ollama ps
+```
+
+If another model is loaded and the runner is stuck in `Stopping...`, every request queues
+behind it. Free the runner with:
+
+```bash
+ollama stop <model>
+```
+
+A response that takes ~25 s only on the first call is the normal **cold start** of the model;
+the following ones are much faster.
+
 ### The search returns nothing
 
 Ingest the documentation first:
 
 ```bash
 python scripts/ingest_docs.py --source /path/to/python-docs-text
+```
+
+Check how many chunks the store holds:
+
+```bash
+curl http://localhost:8000/learning/stats
 ```
 
 ---

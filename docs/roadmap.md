@@ -39,10 +39,11 @@
 
 - [x] Package layout (`app/`), configuration through the environment
 - [x] Structured logging instead of `print()`
-- [x] Test suite (security, database, learning, API)
+- [x] Test suite (security, database, learning, sandbox, orchestrator, API)
 - [x] Lint and format configuration (ruff), type checking (mypy)
 - [x] CI workflow, Makefile, `.gitignore`, `.editorconfig`, `.gitattributes`
 - [x] English documentation
+- [x] End-to-end smoke test driving the real sandbox, vector store and model
 
 ## Next
 

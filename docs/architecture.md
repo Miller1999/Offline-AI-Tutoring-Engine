@@ -79,6 +79,24 @@ passed?  → success
 failed?  → RAG lookup + Ollama → Socratic feedback (guarded)
 ```
 
+## Reading the sandbox report
+
+`pytest-json-report` describes a failing run in three different ways, and the parser has to
+tell them apart — the difference between "the student failed" and "the student's code did not
+even compile" is exactly what the tutor needs to give a useful hint.
+
+| Failure | Where pytest puts it | What the tutor receives |
+|----------|----------------------|-------------------------|
+| **Collection error** — the module does not import (syntax error, missing function) | `collectors[].outcome == "failed"` and an **empty** `tests` list | The exception extracted from the `E ` lines of the traceback |
+| **Setup error** — a fixture fails before the test body | `tests[].setup.outcome == "failed"` | The crash message of the `setup` phase |
+| **Assertion error** | `tests[].call.outcome == "failed"` | The crash message of the `call` phase |
+
+The collection error is the dangerous one: a parser that only iterates over `tests` finds an
+empty list, concludes that everything passed and reports a broken submission as a success —
+which also advances the gating of that student. `app/core/sandbox.py` therefore inspects the
+collectors first, and `tests/test_sandbox.py` locks the behaviour down with the three real
+report shapes.
+
 ## Isolation model
 
 Every evaluation gets its own directory, so two students evaluating at the same time can never
