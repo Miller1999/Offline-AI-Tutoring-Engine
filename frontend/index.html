@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tutoring Platform</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+        <button type="button" class="tab-btn active" data-tab="exercises">
+            📝 Exercises
+        </button>
+        <button type="button" class="tab-btn" data-tab="learning">
+            📖 Learning
+        </button>
+    </div>
+
+    <!-- TAB: EXERCISES -->
+    <div id="tab-exercises" class="tab-content active">
+
+        <!-- SECTION 1: EXERCISE GENERATOR -->
+        <div class="card card-purple">
+            <h1 class="title-lg">1. AI Exercise Generator</h1>
+            <p class="text-muted">
+                Request a personalised exercise. The system writes the instructions and keeps
+                the hidden test suite secret.
+            </p>
+
+            <form id="generateForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="studentIdGenerate">Student ID</label>
+                        <input type="text" id="studentIdGenerate" required
+                               placeholder="e.g. student_001" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="topicInput">Exercise Topic</label>
+                        <input type="text" id="topicInput" required
+                               placeholder="e.g. Dictionary Manipulation" class="form-input">
+                    </div>
+                </div>
+                <button type="submit" id="btnGenerate" class="btn btn-purple">
+                    Generate Exercise
+                </button>
+            </form>
+
+            <!-- Generation results -->
+            <div id="loadingGenerate" class="text-purple-600 font-medium hidden mt-4 pulse">
+                The AI is drafting the exercise and programming the secret tests...
+            </div>
+            <div id="resultGenerate" class="mt-6 hidden result-box">
+                <h3 class="font-bold text-purple-800 mb-2">Instructions:</h3>
+                <p id="instructionsUI" class="text-gray-800 mb-4 whitespace-pre-wrap"></p>
+
+                <!-- EXPECTED EXAMPLE (terminal style) -->
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <svg class="terminal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        <h3 class="terminal-title">Expected Example</h3>
+                    </div>
+                    <code id="exampleUI" class="terminal-content"></code>
+                </div>
+
+                <h3 class="font-bold text-purple-800 mb-2">Starter Code (copy this into your file):</h3>
+                <pre id="starterCodeUI" class="code-block"></pre>
+            </div>
+        </div>
+
+        <!-- SECTION 2: EVALUATOR -->
+        <div class="card card-blue">
+            <h1 class="title-lg">2. Socratic Evaluation Platform</h1>
+            <p class="text-muted">
+                Upload your solution. Use <strong>dynamic</strong> as the Exercise ID if you
+                came from the previous step.
+            </p>
+
+            <div class="form-group">
+                <button type="button" id="btnDefaultExercise" class="btn btn-secondary">
+                    Load the built-in exercise
+                </button>
+            </div>
+
+            <form id="evaluationForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="studentIdEvaluate">Student ID</label>
+                        <input type="text" id="studentIdEvaluate" required
+                               placeholder="e.g. student_001" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="exerciseId">Exercise ID</label>
+                        <input type="text" id="exerciseId" required value="dynamic"
+                               class="form-input form-input-mono form-input-bg">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fileInput">Code file (.py)</label>
+                    <input type="file" id="fileInput" accept=".py" required class="form-file">
+                </div>
+                <button type="submit" id="btnEvaluate" class="btn btn-blue">
+                    Evaluate Code
+                </button>
+            </form>
+
+            <div id="resultContainer" class="mt-8 hidden">
+                <h2 class="font-semibold text-lg border-b pb-2 mb-4">Evaluation Result</h2>
+                <div id="loadingEvaluate" class="text-blue-600 font-medium hidden pulse">
+                    Analysing in the sandbox and consulting the AI tutor...
+                </div>
+                <div id="responseBox" class="hidden">
+                    <div id="statusBadge" class="badge"></div>
+                    <div id="messageText" class="message-box whitespace-pre-wrap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: LEARNING -->
+    <div id="tab-learning" class="tab-content">
+        <div class="card card-green">
+            <h1 class="title-lg">📖 Learning Material</h1>
+            <p class="text-muted">
+                Python technical documentation, organised by topic. Semantic search included.
+            </p>
+
+            <!-- Search bar -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="searchInput"
+                           placeholder="Search the whole documentation (e.g. lists, dictionaries, files...)"
+                           class="form-input" style="flex: 1;">
+                    <button type="button" id="searchBtn" class="btn btn-blue"
+                            style="width: auto; padding: 0.5rem 1.5rem;">Search</button>
+                </div>
+                <div id="searchResults" class="hidden" style="margin-top: 0.75rem;"></div>
+            </div>
+
+            <!-- Navigation breadcrumb -->
+            <div id="breadcrumb" class="flex items-center gap-2 mb-4 text-sm">
+                <span class="text-gray-600">📚</span>
+                <button type="button" id="bcCategories" class="link-button font-medium">Categories</button>
+                <span id="bcSep1" class="text-gray-400 hidden">›</span>
+                <span id="bcCategory" class="text-gray-600 hidden"></span>
+                <span id="bcSep2" class="text-gray-400 hidden">›</span>
+                <span id="bcTopic" class="text-gray-600 hidden font-medium"></span>
+            </div>
+
+            <!-- Main container -->
+            <div id="learningContent" class="learning-content">
+                <div class="learning-loading">
+                    <div class="spinner"></div>
+                    <p class="text-gray-600">Loading learning material...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+</body>
+</html>
