@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5-coder:7b"
     ollama_timeout_seconds: float = 120.0
+    #: Context window requested for every generation. The KV cache of a large
+    #: context does not fit in a modest GPU and spills into system RAM, which
+    #: turns every request into a slow one. The value is pinned here instead
+    #: of being inherited from the Ollama server configuration.
+    ollama_context_length: int = 8192
+    #: How long the model stays in memory after a request. The Ollama default
+    #: is five minutes, which forces a cold start in the middle of a session.
+    ollama_keep_alive: str = "30m"
 
     # ── ChromaDB (vector store) ─────────────────────────────────────────
     chroma_dir: Path = BASE_DIR / "data" / "chroma"

@@ -42,6 +42,14 @@ RAG_RESULTS = 3
 #: Keys expected in the JSON produced by the exercise generator.
 EXERCISE_KEYS = ("instructions", "expected_example", "starter_code", "test_code")
 
+#: Whether the local model is currently loaded in memory.
+_model_ready = False
+
+
+def is_model_ready() -> bool:
+    """Return whether the local model has been loaded and can answer."""
+    return _model_ready
+
 
 # ── Exercise test persistence ─────────────────────────────────────────────
 
@@ -126,6 +134,9 @@ def _retrieve_context(query: str) -> str:
 
 def _chat(system_prompt: str, user_prompt: str, settings: Settings, **extra: Any) -> str:
     """Send a chat request to the local Ollama server and return its answer."""
+    options: dict[str, Any] = {"num_ctx": settings.ollama_context_length}
+    options.update(extra.get("options") or {})
+
     payload: dict[str, Any] = {
         "model": settings.ollama_model,
         "messages": [
@@ -133,8 +144,10 @@ def _chat(system_prompt: str, user_prompt: str, settings: Settings, **extra: Any
             {"role": "user", "content": user_prompt},
         ],
         "stream": False,
+        "keep_alive": settings.ollama_keep_alive,
         **extra,
     }
+    payload["options"] = options
 
     response = requests.post(
         settings.ollama_chat_url,
@@ -143,6 +156,35 @@ def _chat(system_prompt: str, user_prompt: str, settings: Settings, **extra: Any
     )
     response.raise_for_status()
     return response.json()["message"]["content"].strip()
+
+
+def warm_up_model(settings: Settings | None = None) -> bool:
+    """Load the local model into memory so the first answer is not delayed.
+
+    Loading a local model takes from a few seconds to a couple of minutes,
+    depending on the disk and on the GPU. Paying that cost in the background
+    when the API starts keeps the first student request fast.
+
+    Returns ``True`` when the model answered.
+    """
+    global _model_ready
+
+    settings = settings or get_settings()
+
+    try:
+        _chat(
+            "You are a helpful assistant.",
+            "Reply with the single word: ready",
+            settings,
+            temperature=0.0,
+        )
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Could not warm up the local model: %s", exc)
+        return False
+
+    logger.info("The local model '%s' is loaded and ready", settings.ollama_model)
+    _model_ready = True
+    return True
 
 
 # ── Socratic feedback ──────────────────────────────────────────────────────

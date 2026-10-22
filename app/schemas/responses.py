@@ -14,6 +14,7 @@ class HealthResponse(BaseModel):
     version: str
     llm: str = Field(description="Name of the local model the tutor uses")
     vector_store: bool = Field(description="Whether the ChromaDB collection is reachable")
+    model_ready: bool = Field(description="Whether the local model is loaded and can answer")
 
 
 class EvaluationResponse(BaseModel):

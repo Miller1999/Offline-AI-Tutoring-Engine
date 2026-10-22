@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.schemas.responses import HealthResponse
-from app.services import learning
+from app.services import learning, orchestrator
 
 logger = get_logger(__name__)
 
@@ -24,6 +24,7 @@ def health() -> HealthResponse:
         version=settings.version,
         llm=settings.ollama_model,
         vector_store=vector_store,
+        model_ready=orchestrator.is_model_ready(),
     )
 
 

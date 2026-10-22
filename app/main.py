@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import evaluation, learning, system
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
-from app.services import database
+from app.services import database, orchestrator
 from app.services import learning as learning_service
 
 logger = get_logger(__name__)
@@ -39,6 +40,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("Vector store ready with %s chunks", collection.count())
     except Exception as exc:  # noqa: BLE001 - never block startup
         logger.warning("Could not warm up the vector store: %s", exc)
+
+    # Load the local model in the background. The first student request would
+    # otherwise wait for the model to be loaded from disk.
+    threading.Thread(target=orchestrator.warm_up_model, daemon=True).start()
 
     yield
     logger.info("Shutting down %s", settings.app_name)
